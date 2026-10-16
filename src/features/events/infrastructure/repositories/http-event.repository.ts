@@ -49,15 +49,32 @@ export class HttpEventRepository implements EventRepository {
     id: string,
     readiness: Partial<EventReadiness>,
   ): Promise<EventEntity> {
-    const data = await this.request<unknown>(
-      `/events/${encodeURIComponent(id)}/readiness`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(readiness),
-      },
-    );
-    return eventDtoToEntity(this.parseDto(data));
+    try {
+      const data = await this.request<unknown>(
+        `/events/${encodeURIComponent(id)}/readiness`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(readiness),
+        },
+      );
+      return eventDtoToEntity(this.parseDto(data));
+    } catch (error) {
+      if (
+        !shouldUseMockEventApi ||
+        !(error instanceof EventApplicationError) ||
+        error.message !== "The event service could not complete the request."
+      ) {
+        throw error;
+      }
+
+      // A local mock request can fall through to Next's HTML 404 response if
+      // the service worker misses it. Keep local preview readiness usable.
+      const { eventMockStore } = await import("@/mocks/state/event.mock-store");
+      const updated = eventMockStore.updateReadiness(id, readiness);
+      if (!updated) throw error;
+      return eventDtoToEntity(this.parseDto(updated));
+    }
   }
   async transition(
     id: string,

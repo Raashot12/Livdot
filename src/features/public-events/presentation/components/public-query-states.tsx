@@ -50,9 +50,11 @@ export function PublicLoadingState({
 export function PublicRequestError({
   onRetry,
   title = "Events could not be loaded",
+  description = "The event service could not complete the request. Check your connection and try again.",
 }: {
   readonly onRetry: () => void;
   readonly title?: string;
+  readonly description?: string;
 }) {
   return (
     <section
@@ -66,8 +68,7 @@ export function PublicRequestError({
         {title}
       </h2>
       <p className="mt-2 max-w-[44ch] text-sm leading-6 text-[#687693]">
-        The event service could not complete the request. Check your connection
-        and try again.
+        {description}
       </p>
       <button
         type="button"

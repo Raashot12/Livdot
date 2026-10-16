@@ -15,6 +15,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { useEvent } from "@/features/events/application/hooks/use-event";
+import { EventApplicationError } from "@/features/events/application/errors/event-application.error";
 import type { EventEntity } from "@/features/events/domain/entities/event.entity";
 import { EmptyState } from "@/shared/components/feedback/empty-state";
 import {
@@ -273,7 +274,7 @@ export function PublicEventDetailPage({
 }: {
   readonly eventId: string;
 }) {
-  const { data: event, isPending, isError, refetch } = useEvent(eventId);
+  const { data: event, isPending, isError, error, refetch } = useEvent(eventId);
   const mainRef = useRef<HTMLElement | null>(null);
   const [activeSection, setActiveSection] = useState("overview");
   usePublicScrollReveal(mainRef, event?.id);
@@ -287,10 +288,22 @@ export function PublicEventDetailPage({
     );
   }
   if (isError || !event) {
+    const isNotFound =
+      !isError ||
+      (error instanceof EventApplicationError && error.code === "NOT_FOUND");
     return (
       <main className="mx-auto min-h-[70vh] w-full max-w-[1440px] px-5 pt-8 pb-16 sm:px-8 lg:px-12">
         <PublicRequestError
-          title="This event could not be found"
+          title={
+            isNotFound
+              ? "This event could not be found"
+              : "Event details could not be loaded"
+          }
+          description={
+            isNotFound
+              ? "This event may have been removed, or the link may be incorrect."
+              : undefined
+          }
           onRetry={() => void refetch()}
         />
       </main>

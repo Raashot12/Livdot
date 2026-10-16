@@ -17,6 +17,10 @@ import {
   type EventCrewStreamingTab,
 } from "../constants/event-crew-streaming.constants";
 import { EmptyState } from "@/shared/components/feedback/empty-state";
+import {
+  EventCrewManagementPanel,
+  EventStreamingSetupPanel,
+} from "./event-production-setup-panels";
 
 function EventCrewReadiness({ event }: { event: EventEntity }) {
   return (
@@ -71,24 +75,42 @@ function EventCrewDataPanel({
   icon: Icon,
   title,
   description,
+  action,
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
+  action?: { readonly href: string; readonly label: string };
 }) {
   return (
     <section className={EVENT_CREW_STREAMING_PANEL_CLASS}>
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#edf4ff] text-[#075bff]">
-          <Icon size={17} aria-hidden="true" />
-        </span>
-        <h2 className="text-[14px] font-bold text-[#101b43]">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#edf4ff] text-[#075bff]">
+            <Icon size={17} aria-hidden="true" />
+          </span>
+          <h2 className="text-[14px] font-bold text-[#101b43]">{title}</h2>
+        </div>
+        {action && (
+          <Link
+            href={action.href}
+            className="focus-ring inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-semibold text-[#075bff] hover:bg-[#edf4ff]"
+          >
+            {action.label} <ChevronRight size={13} aria-hidden="true" />
+          </Link>
+        )}
       </div>
-      <EmptyState
-        size="compact"
-        title="No connected records yet"
-        description={description}
-      />
+      {action ? (
+        <p className="mt-2 text-[11px] leading-relaxed text-[#687693]">
+          {description}
+        </p>
+      ) : (
+        <EmptyState
+          size="compact"
+          title="No connected records yet"
+          description={description}
+        />
+      )}
     </section>
   );
 }
@@ -107,7 +129,11 @@ export function EventCrewStreamingTabContent({
           <EventCrewDataPanel
             icon={Users}
             title="Crew roster"
-            description="Crew members, roles, contact details, and assignments will appear when crew data is connected."
+            description="Add production contacts and assign them to this event."
+            action={{
+              href: `/dashboard/events/${event.id}/crew?tab=crew`,
+              label: "Manage crew",
+            }}
           />
           <div className="grid min-w-0 gap-3.5 md:grid-cols-2">
             <EventCrewDataPanel
@@ -127,7 +153,11 @@ export function EventCrewStreamingTabContent({
           <EventCrewDataPanel
             icon={Radio}
             title="Streaming setup"
-            description="Ingest endpoints, stream keys, and connection health are not connected to this event yet."
+            description="Add the RTMP ingest server and key used by your encoder."
+            action={{
+              href: `/dashboard/events/${event.id}/crew?tab=streaming`,
+              label: "Configure stream",
+            }}
           />
           <EventCrewDataPanel
             icon={FileText}
@@ -135,6 +165,24 @@ export function EventCrewStreamingTabContent({
             description="Incident records will appear here when the production log is connected."
           />
         </div>
+      </div>
+    );
+  }
+
+  if (tab === "crew") {
+    return (
+      <div className="grid min-w-0 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,.42fr)]">
+        <EventCrewManagementPanel event={event} />
+        <EventCrewReadiness event={event} />
+      </div>
+    );
+  }
+
+  if (tab === "streaming") {
+    return (
+      <div className="grid min-w-0 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,.42fr)]">
+        <EventStreamingSetupPanel event={event} />
+        <EventCrewReadiness event={event} />
       </div>
     );
   }

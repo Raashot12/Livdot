@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, CalendarDays, ChevronRight } from "lucide-react";
 import { useEvent } from "../../application/hooks/use-event";
 import { ErrorState } from "@/shared/components/feedback/error-state";
@@ -32,6 +32,9 @@ export function EventCrewStreamingPage({
     EVENT_CREW_STREAMING_TABS.find((tab) => tab.id === initialTab)?.id ??
     "overview";
   const [activeTab, setActiveTab] = useState<EventCrewStreamingTab>(initial);
+  useEffect(() => {
+    setActiveTab(initial);
+  }, [initial]);
   if (isPending)
     return <LoadingState label="Loading crew and streaming" rows={5} />;
   if (isError || !event)

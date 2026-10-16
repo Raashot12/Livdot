@@ -88,7 +88,7 @@ export const eventDraftSchema = z
     streamingProvider: z.enum(["livdot", "external"]),
     streamingRegion: z.enum(["auto", "africa", "europe", "north-america"]),
     streamingServer: z.string(),
-    streamingPlatform: z.string().min(1, "Choose a streaming platform."),
+    streamingPlatform: z.string(),
     streamingUrl: z
       .string()
       .refine(
@@ -181,6 +181,18 @@ export const eventDraftSchema = z
     },
   )
   .superRefine((values, context) => {
+    if (
+      values.streamingEnabled &&
+      values.streamingProvider === "external" &&
+      !values.streamingPlatform
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Choose a streaming platform.",
+        path: ["streamingPlatform"],
+      });
+    }
+
     if (values.date && values.timeZone) {
       const currentScheduleDateTime = getScheduleDateTime(values.timeZone);
 
@@ -401,7 +413,7 @@ export const fieldsByStep: FieldPath<EventDraft>[][] = [
     "seatMapSections",
   ],
   ["ticketTypes", "maxTicketsPerUser", "seatMapEnabled"],
-  ["streamingUrl", "streamingKey"],
+  ["streamingPlatform", "streamingUrl", "streamingKey"],
   [
     "name",
     "eventType",
@@ -422,6 +434,7 @@ export const fieldsByStep: FieldPath<EventDraft>[][] = [
     "seatMapEnabled",
     "seatMapSections",
     "ticketTypes",
+    "streamingPlatform",
     "streamingUrl",
     "streamingKey",
   ],

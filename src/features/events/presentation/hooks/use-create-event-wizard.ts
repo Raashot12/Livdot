@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldErrors,
+} from "react-hook-form";
 import { toast } from "sonner";
 import { useCreateEvent } from "../../application/hooks/use-create-event";
 import {
@@ -155,6 +160,22 @@ export function useCreateEventWizard() {
       return;
     }
     setStep((current) => Math.min(current + 1, steps.length - 1));
+  }
+
+  function handleInvalidSubmit(errors: FieldErrors<EventDraft>) {
+    const firstInvalidStep = fieldsByStep
+      .slice(0, -1)
+      .findIndex((fields) =>
+        fields.some((field) => {
+          const rootField = field.split(".")[0] as keyof EventDraft;
+          return Boolean(errors[rootField]);
+        }),
+      );
+
+    setStep(firstInvalidStep >= 0 ? firstInvalidStep : 0);
+    toast.error("Check the highlighted fields", {
+      description: "Review the marked details before publishing.",
+    });
   }
 
   function goToStep(index: number) {
@@ -362,6 +383,7 @@ export function useCreateEventWizard() {
     isSubmitting,
     getValues,
     handleSubmit,
+    handleInvalidSubmit,
     register,
     setValue,
     trigger,

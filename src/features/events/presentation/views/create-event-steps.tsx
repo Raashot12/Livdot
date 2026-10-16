@@ -128,6 +128,7 @@ export function CreateEventWizard() {
     activeTicketQuantity,
     visibleStartingPrice,
     isCreating,
+    handleInvalidSubmit,
   } = useCreateEventWizard();
   const startDateMinimum = getStartDateMinimum(values.timeZone);
   const startTimeMinimum = getStartTimeMinimum(values.date, values.timeZone);
@@ -206,7 +207,7 @@ export function CreateEventWizard() {
         aria-labelledby="create-event-heading"
         noValidate
         id="create-event-form"
-        onSubmit={handleSubmit(createEvent)}
+        onSubmit={handleSubmit(createEvent, handleInvalidSubmit)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && event.target instanceof HTMLInputElement)
             event.preventDefault();

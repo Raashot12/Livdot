@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@alisaitteke/seatmap-canvas/dist/seatmap.canvas.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -169,21 +168,4 @@ html {
 .status-replay {
   color: #6d28d9;
   background: #f3edff;
-}
-.public-seatmap-stage .seatmap-svg {
-  font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
-}
-.public-seatmap-stage .seatmap-svg.zoom-level-VENUE .stage .blocks .block {
-  filter: drop-shadow(0 5px 9px rgb(11 21 56 / 12%));
-}
-.public-seatmap-stage .seatmap-svg .stage .blocks .block .info .title,
-.public-seatmap-stage
-  .seatmap-svg
-  .stage
-  .blocks
-  .block
-  .labels
-  .label
-  .label-text {
-  fill: #102341;
 }

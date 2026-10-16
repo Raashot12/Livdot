@@ -39,7 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SeatMapCanvasPreview } from "../components/seat-map-canvas-preview";
+import { SeatMap3DPreview } from "../components/seat-map-3d-preview";
 import { EmptyState } from "@/shared/components/feedback/empty-state";
 import {
   bannerAlt,
@@ -914,17 +914,17 @@ export function CreateEventWizard() {
                               Map preview
                             </h3>
                             <p className="mt-0.5 text-[10px] text-[#6c7c98]">
-                              Generated from your section dimensions
+                              3D venue with your ticket sections
                             </p>
                           </div>
                           <span className="rounded-full bg-[#eaf3ff] px-2.5 py-1 text-[10px] font-semibold text-[#075bff]">
                             {seatMapPreview.blocks.length} sections
                           </span>
                         </div>
-                        <SeatMapCanvasPreview seatMap={seatMapPreview} />
+                        <SeatMap3DPreview seatMap={seatMapPreview} />
                         <p className="mt-2 text-[10px] leading-relaxed text-[#6c7c98]">
-                          Each dot represents a reserved seat. Section prices
-                          are saved with the event and used at checkout.
+                          Set seat counts and prices in the section builder.
+                          Buyers will choose exact seats from those sections.
                         </p>
                       </div>
                     </div>

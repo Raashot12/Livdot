@@ -46,20 +46,22 @@ export function TicketingOverviewPage() {
               <h2 className="mt-3 truncate text-[14px] font-semibold text-[#101b43]">
                 {event.title}
               </h2>
-              <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-[#687693]">
-                <CalendarDays size={13} aria-hidden="true" />
-                {formatEventDateTime(event.scheduledAt, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </p>
-              <Link
-                href={"/dashboard/events/" + event.id + "/tickets"}
-                className="focus-ring mt-4 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#dce5f2] px-3 text-[10px] font-semibold text-[#075bff] hover:bg-[#f7faff]"
-              >
-                Open ticketing <ArrowRight size={13} aria-hidden="true" />
-              </Link>
+              <div className="justify-between items-center gap-4">
+                <p className="mt-1 inline-flex items-center gap-1.5 text-[10px] text-[#687693]">
+                  <CalendarDays size={13} aria-hidden="true" />
+                  {formatEventDateTime(event.scheduledAt, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+                <Link
+                  href={"/dashboard/events/" + event.id + "/tickets"}
+                  className="focus-ring mt-4 inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#dce5f2] px-3 text-[10px] font-semibold text-[#075bff] hover:bg-[#f7faff]"
+                >
+                  Open ticketing <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

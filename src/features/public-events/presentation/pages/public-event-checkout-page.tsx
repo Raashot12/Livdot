@@ -12,6 +12,7 @@ import {
   Minus,
   Plus,
   Ticket,
+  X,
 } from "lucide-react";
 import { useEvent } from "@/features/events/application/hooks/use-event";
 import type { EventEntity } from "@/features/events/domain/entities/event.entity";
@@ -31,6 +32,7 @@ import {
   getCheckoutSelectionSnapshot,
   getCheckoutLines,
   parseCheckoutSelection,
+  seatMapSelectionKey,
   subscribeCheckoutSelection,
   writeCheckoutSelection,
   type CheckoutSelection,
@@ -82,10 +84,12 @@ function SelectionSummary({
   event,
   selection,
   onContinue,
+  onReleaseSeat,
 }: {
   readonly event: EventEntity;
   readonly selection: CheckoutSelection;
   readonly onContinue: () => void;
+  readonly onReleaseSeat: (key: string) => void;
 }) {
   const lines = useMemo(
     () => getCheckoutLines(event, selection),
@@ -104,6 +108,37 @@ function SelectionSummary({
   );
   const currency = lines[0]?.currency ?? "NGN";
   const hasValidSelection = selectedCount > 0 && selectedCount === pricedCount;
+  const claimedSeats = useMemo(() => {
+    const selectedKeys = new Set(selection.seatKeys);
+    const foundKeys = new Set<string>();
+    const seats = (event.seatMap?.blocks ?? []).flatMap((block) =>
+      block.seats.flatMap((seat) => {
+        const key = seatMapSelectionKey(block.id, seat.id);
+        if (!selectedKeys.has(key)) return [];
+        foundKeys.add(key);
+        return [
+          {
+            key,
+            label: `Seat ${seat.title}`,
+            section: block.title,
+            row: seat.row,
+          },
+        ];
+      }),
+    );
+
+    return [
+      ...seats,
+      ...selection.seatKeys
+        .filter((key) => !foundKeys.has(key))
+        .map((key) => ({
+          key,
+          label: "Seat no longer available",
+          section: "Remove this selection",
+          row: undefined,
+        })),
+    ];
+  }, [event.seatMap, selection.seatKeys]);
 
   return (
     <aside className="overflow-hidden rounded-[16px] border border-[#e3ebf5] bg-white shadow-[0_10px_30px_rgba(11,21,56,.06)] lg:sticky lg:top-5">
@@ -157,7 +192,7 @@ function SelectionSummary({
                       × {line.quantity}
                     </span>
                   </p>
-                  {line.description && (
+                  {line.description && !line.seatKeys?.length && (
                     <p className="mt-1 line-clamp-2 text-xs leading-4 text-[#687693]">
                       {line.description}
                     </p>
@@ -174,9 +209,37 @@ function SelectionSummary({
             Choose available tickets to see your order total.
           </p>
         )}
+        {claimedSeats.length > 0 && (
+          <div className="mt-3 rounded-[10px] border border-[#dce9f8] bg-white p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h4 className="text-xs font-bold text-[#162545]">
+                Claimed seats
+              </h4>
+              <span className="text-[10px] text-[#687693]">
+                Select a seat to release it
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {claimedSeats.map((seat) => (
+                <button
+                  key={seat.key}
+                  type="button"
+                  onClick={() => onReleaseSeat(seat.key)}
+                  aria-label={`Release ${seat.label}${seat.section ? ` in ${seat.section}` : ""}${seat.row ? `, row ${seat.row}` : ""}`}
+                  title="Release this seat"
+                  className="focus-ring inline-flex min-h-9 items-center gap-2 rounded-lg border border-[#c8ddf4] bg-[#f7fbff] px-2.5 text-[11px] font-semibold text-[#174a87] transition-colors hover:border-[#087cf0] hover:bg-[#eef6ff]"
+                >
+                  {seat.label}
+                  <X size={13} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {selectedCount !== pricedCount && selectedCount > 0 && (
           <p role="status" className="mt-2 text-xs leading-5 text-amber-700">
-            The host needs to add prices before checkout can continue.
+            Some selected seats are claimed or missing a price. Release them
+            before continuing.
           </p>
         )}
         <div className="mt-4 flex items-center justify-between border-t border-[#e9eef6] pt-4">
@@ -369,7 +432,7 @@ export function PublicEventCheckoutPage({
             </div>
             <span className="rounded-full bg-[#eff6ff] px-3 py-1.5 text-xs font-semibold text-[#087cf0]">
               {hasSeatMap
-                ? `${selectedSeats.size} selected`
+                ? `${selectedSeats.size} claimed`
                 : `${quantitySelected} selected`}
             </span>
           </div>
@@ -481,6 +544,7 @@ export function PublicEventCheckoutPage({
           event={event}
           selection={selection}
           onContinue={continueToCheckout}
+          onReleaseSeat={toggleSeat}
         />
       </div>
     </main>

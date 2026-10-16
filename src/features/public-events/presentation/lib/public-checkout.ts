@@ -1,5 +1,8 @@
 import type { EventEntity } from "@/features/events/domain/entities/event.entity";
-import type { EventSeatMapSeat } from "@/features/events/domain/entities/event-seat-map";
+import type {
+  EventSeatMapSeat,
+  SeatMapId,
+} from "@/features/events/domain/entities/event-seat-map";
 import type { EventTicketOption } from "@/features/events/domain/entities/event-ticket-option";
 
 const CHECKOUT_KEY = "liv-dot:checkout:v1";
@@ -62,6 +65,10 @@ export type SimulatedOrderEvent = {
   readonly scheduledAt: string | null;
   readonly lines: readonly CheckoutLineItem[];
 };
+
+export function seatMapSelectionKey(blockId: SeatMapId, seatId: SeatMapId) {
+  return `${blockId}:${seatId}`;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -249,8 +256,9 @@ export function getCheckoutLines(
   if (seatMap) {
     const selected = new Set(selection.seatKeys);
     return seatMap.blocks.flatMap((block) => {
-      const seats = block.seats.filter((seat) =>
-        selected.has(`${block.id}:${seat.id}`),
+      const seats = block.seats.filter(
+        (seat) =>
+          seat.salable && selected.has(seatMapSelectionKey(block.id, seat.id)),
       );
       if (seats.length === 0) return [];
       const groups = new Map<string, EventSeatMapSeat[]>();
@@ -279,7 +287,9 @@ export function getCheckoutLines(
             unitPrice: price,
             currency,
             seatLabels: groupedSeats.map((seat) => seat.title),
-            seatKeys: groupedSeats.map((seat) => `${block.id}:${seat.id}`),
+            seatKeys: groupedSeats.map((seat) =>
+              seatMapSelectionKey(block.id, seat.id),
+            ),
           },
         ];
       });

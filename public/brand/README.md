@@ -1,0 +1,1 @@
+The dashboard uses `/images/sidebarlogo.webp` as the complete LIV DOT logo lockup, including its symbol and wordmark. Keep the asset intact and do not recreate the wordmark as separate interface text.

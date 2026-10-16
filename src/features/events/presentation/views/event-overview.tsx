@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -15,6 +16,14 @@ import { EmptyState } from "@/shared/components/feedback/empty-state";
 import { ErrorState } from "@/shared/components/feedback/error-state";
 import { LoadingState } from "@/shared/components/feedback/loading-state";
 import {
+  formatTicketMoney,
+  getOrderAttendeesForEvent,
+  getOrderLinesForEvent,
+  getSimulatedOrdersSnapshot,
+  parseSimulatedOrders,
+  subscribeSimulatedOrders,
+} from "@/shared/lib/demo-ticketing-store";
+import {
   EVENT_OVERVIEW_PANEL_CLASS,
   EVENT_OVERVIEW_LIFECYCLE,
   EVENT_OVERVIEW_REQUIREMENTS,
@@ -27,6 +36,11 @@ import { formatEventDateTime } from "../lib/event-view.utils";
 
 export function EventOverview({ eventId }: { readonly eventId: string }) {
   const { data, isPending, isError, error, refetch, isFetching } = useEvents();
+  const ordersSnapshot = useSyncExternalStore(
+    subscribeSimulatedOrders,
+    getSimulatedOrdersSnapshot,
+    () => null,
+  );
   if (isPending)
     return <LoadingState label="Loading event overview" rows={5} />;
   if (isError)
@@ -48,6 +62,33 @@ export function EventOverview({ eventId }: { readonly eventId: string }) {
         action={{ label: "Browse events", href: "/dashboard/events" }}
       />
     );
+
+  const eventOrders = parseSimulatedOrders(ordersSnapshot)
+    .map((order) => ({
+      order,
+      lines: getOrderLinesForEvent(order, event.id),
+      attendees: getOrderAttendeesForEvent(order, event.id),
+    }))
+    .filter((entry) => entry.lines.length > 0);
+  const ticketsIssued = eventOrders.reduce(
+    (sum, entry) =>
+      sum + entry.lines.reduce((lineSum, line) => lineSum + line.quantity, 0),
+    0,
+  );
+  const salesByCurrency = new Map<string, number>();
+  for (const entry of eventOrders) {
+    for (const line of entry.lines) {
+      salesByCurrency.set(
+        line.currency,
+        (salesByCurrency.get(line.currency) ?? 0) +
+          line.quantity * line.unitPrice,
+      );
+    }
+  }
+  const ticketSales =
+    [...salesByCurrency.entries()]
+      .map(([currency, amount]) => formatTicketMoney(amount, currency))
+      .join(" · ") || "—";
 
   const readiness = evaluateReadiness(event.readiness);
   const currentIndex = EVENT_OVERVIEW_LIFECYCLE.findIndex(
@@ -213,11 +254,52 @@ export function EventOverview({ eventId }: { readonly eventId: string }) {
           />
         </div>
         <aside className="min-w-0 space-y-4">
-          <EventOverviewEmptyPanel
-            title="Ticket sales & revenue"
-            description="Sales totals and revenue trends will appear when ticketing data is available."
-            icon={<Ticket size={20} />}
-          />
+          <section className={EVENT_OVERVIEW_PANEL_CLASS}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-[15px] font-bold text-[#101b43]">
+                  Ticket sales &amp; revenue
+                </h2>
+                <p className="mt-1 text-[11px] text-[#687693]">
+                  Completed checkout simulations for this event.
+                </p>
+              </div>
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#edf4ff] text-[#075bff]">
+                <Ticket size={18} aria-hidden="true" />
+              </span>
+            </div>
+            <p className="mt-4 text-[10px] font-medium text-[#687693]">
+              Gross sales · demo
+            </p>
+            <p className="mt-1 text-2xl font-bold tracking-[-.03em] text-[#101b43]">
+              {ticketSales}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-[#f7faff] p-3">
+                <p className="text-[9px] text-[#687693]">Orders</p>
+                <p className="mt-0.5 text-sm font-bold text-[#101b43]">
+                  {eventOrders.length}
+                </p>
+              </div>
+              <div className="rounded-lg bg-[#f7faff] p-3">
+                <p className="text-[9px] text-[#687693]">Tickets issued</p>
+                <p className="mt-0.5 text-sm font-bold text-[#101b43]">
+                  {ticketsIssued}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] leading-4 text-[#687693]">
+              {eventOrders.length
+                ? `${eventOrders.reduce((sum, entry) => sum + entry.attendees.length, 0)} ticket holders recorded. Demo data is stored in this browser.`
+                : "No orders recorded yet. Completed demo checkouts will appear here."}
+            </p>
+            <Link
+              href={`/dashboard/events/${event.id}/tickets`}
+              className="focus-ring mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#dce5f2] px-3 text-[10px] font-semibold text-[#075bff] hover:bg-[#f7faff]"
+            >
+              View orders <ExternalLink size={12} aria-hidden="true" />
+            </Link>
+          </section>
           <EventOverviewEmptyPanel
             title="Live audience & stream health"
             description="Audience counts and stream telemetry will appear after a live analytics source is connected."

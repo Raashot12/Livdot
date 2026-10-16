@@ -14,7 +14,7 @@ import {
 } from "../components/dashboard-overview/dashboard-overview-analytics";
 import { EventReadiness } from "../components/dashboard-overview/event-readiness";
 import { RecentEvents } from "../components/dashboard-overview/recent-events";
-import { UnsupportedAnalytics } from "../components/dashboard-overview/unsupported-analytics";
+import { TicketSalesAnalytics } from "../components/dashboard-overview/ticket-sales-analytics";
 import { UpcomingEvents } from "../components/dashboard-overview/upcoming-events";
 
 export function DashboardOverview() {
@@ -88,7 +88,7 @@ export function DashboardOverview() {
       ) : (
         <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.95fr)_minmax(320px,.95fr)]">
           <div className="min-w-0 space-y-3">
-            <UnsupportedAnalytics />
+            <TicketSalesAnalytics />
             <div className="grid min-w-0 gap-3 md:grid-cols-2">
               <StatusBreakdown events={events} />
               <EventSchedule events={events} />

@@ -21,7 +21,12 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -34,6 +39,218 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { useAccountAuth } from "@/features/account/application/hooks/account-auth.context";
 import { getAccountInitials } from "@/features/account/presentation/lib/account.utils";
+import {
+  formatTicketMoney,
+  getOrderTicketCount,
+  getSimulatedOrdersSnapshot,
+  parseSimulatedOrders,
+  subscribeSimulatedOrders,
+} from "@/shared/lib/demo-ticketing-store";
+
+const READ_ORDER_NOTIFICATIONS_KEY = "liv-dot:read-order-notifications:v1";
+const NOTIFICATION_READ_CHANGE_EVENT = "liv-dot:notification-read-change";
+
+function readNotificationIds() {
+  try {
+    const value: unknown = JSON.parse(
+      window.localStorage.getItem(READ_ORDER_NOTIFICATIONS_KEY) ?? "[]",
+    );
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveNotificationIds(ids: string[]) {
+  try {
+    window.localStorage.setItem(
+      READ_ORDER_NOTIFICATIONS_KEY,
+      JSON.stringify(ids),
+    );
+  } catch {
+    // Keep the notification menu usable when browser storage is unavailable.
+  }
+  window.dispatchEvent(new Event(NOTIFICATION_READ_CHANGE_EVENT));
+}
+
+function formatNotificationDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recently";
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function NotificationBell() {
+  const ordersSnapshot = useSyncExternalStore(
+    subscribeSimulatedOrders,
+    getSimulatedOrdersSnapshot,
+    () => null,
+  );
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const orders = parseSimulatedOrders(ordersSnapshot);
+  const readIdSet = new Set(readIds);
+  const unreadCount = orders.filter((order) => !readIdSet.has(order.id)).length;
+
+  useEffect(() => {
+    const syncReadIds = () => setReadIds(readNotificationIds());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === READ_ORDER_NOTIFICATIONS_KEY || event.key === null) {
+        syncReadIds();
+      }
+    };
+
+    syncReadIds();
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(NOTIFICATION_READ_CHANGE_EVENT, syncReadIds);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(NOTIFICATION_READ_CHANGE_EVENT, syncReadIds);
+    };
+  }, []);
+
+  function markRead(orderId: string) {
+    const ids = new Set(readNotificationIds());
+    ids.add(orderId);
+    const nextIds = [...ids];
+    setReadIds(nextIds);
+    saveNotificationIds(nextIds);
+  }
+
+  function markAllRead() {
+    const ids = new Set(readNotificationIds());
+    orders.forEach((order) => ids.add(order.id));
+    const nextIds = [...ids];
+    setReadIds(nextIds);
+    saveNotificationIds(nextIds);
+  }
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Notifications, ${unreadCount} unread`}
+          className="focus-ring relative grid size-10 place-items-center rounded-full text-[#4c5f80] transition hover:bg-[#f0f5fc]"
+        >
+          <Bell size={20} aria-hidden="true" />
+          {unreadCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-0.5 -right-0.5 grid min-h-[18px] min-w-[18px] place-items-center rounded-full bg-[#ff3b4d] px-1 text-[10px] font-bold text-white"
+            >
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={9}
+        className="z-50 w-[min(360px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[#e5ebf4] bg-white p-2 text-[#0b1538] shadow-[0_16px_45px_rgba(11,21,56,.16)]"
+      >
+        <div className="flex items-center justify-between gap-3 px-3 py-2">
+          <DropdownMenuLabel className="p-0 text-sm font-semibold text-[#0b1538]">
+            Notifications
+          </DropdownMenuLabel>
+          {unreadCount > 0 && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                markAllRead();
+              }}
+              className="min-h-8 cursor-pointer rounded-md px-2 text-[11px] font-semibold text-[#075bff] focus:bg-[#f2f6fc] focus:text-[#075bff]"
+            >
+              Mark all read
+            </DropdownMenuItem>
+          )}
+        </div>
+        <DropdownMenuSeparator className="my-1 bg-[#e5ebf4]" />
+        {orders.length === 0 ? (
+          <div className="px-3 py-7 text-center">
+            <Bell
+              size={20}
+              className="mx-auto mb-2 text-[#8a98af]"
+              aria-hidden="true"
+            />
+            <p className="text-[13px] font-semibold text-[#263653]">
+              You’re all caught up
+            </p>
+            <p className="mt-1 text-[11px] leading-5 text-[#687693]">
+              New ticket orders will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="max-h-[min(60vh,420px)] overflow-y-auto">
+            {orders.slice(0, 12).map((order) => {
+              const isUnread = !readIdSet.has(order.id);
+              const ticketCount = getOrderTicketCount(order);
+              return (
+                <DropdownMenuItem
+                  key={order.id}
+                  asChild
+                  onSelect={() => markRead(order.id)}
+                  className={`min-h-0 cursor-pointer items-start gap-3 rounded-lg px-3 py-3 focus:bg-[#f2f6fc] ${
+                    isUnread ? "bg-[#f3f7ff]" : ""
+                  }`}
+                >
+                  <Link
+                    href={
+                      order.eventId
+                        ? `/dashboard/events/${encodeURIComponent(order.eventId)}/tickets`
+                        : "/dashboard/tickets"
+                    }
+                  >
+                    <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-[#eaf1ff] text-[#075bff]">
+                      <Ticket size={15} aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-start justify-between gap-2">
+                        <span className="text-[12px] font-semibold leading-4 text-[#142544]">
+                          New ticket order
+                        </span>
+                        {isUnread && (
+                          <span
+                            aria-label="Unread"
+                            className="mt-1 size-2 shrink-0 rounded-full bg-[#087cf6]"
+                          />
+                        )}
+                      </span>
+                      <span className="mt-1 block truncate text-[11px] text-[#536380]">
+                        {order.eventTitle} · {ticketCount} ticket
+                        {ticketCount === 1 ? "" : "s"} from {order.contactName}
+                      </span>
+                      <span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-[#7a879d]">
+                        <span>{formatNotificationDate(order.createdAt)}</span>
+                        <span className="shrink-0 font-semibold text-[#263653]">
+                          {formatTicketMoney(order.total, order.currency)}
+                        </span>
+                      </span>
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </div>
+        )}
+        {orders.length > 0 && (
+          <>
+            <DropdownMenuSeparator className="my-1 bg-[#e5ebf4]" />
+            <DropdownMenuItem
+              asChild
+              className="min-h-9 justify-center rounded-lg text-[11px] font-semibold text-[#075bff] focus:bg-[#f2f6fc] focus:text-[#075bff]"
+            >
+              <Link href="/dashboard/tickets">View all orders</Link>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const mainLinks = [
   { href: "/dashboard", label: "Overview", icon: Home },
@@ -266,16 +483,7 @@ export function DashboardChrome({
             <span className="hidden rounded-full border border-[#e5ebf4] bg-[#f7faff] px-2.5 py-1 text-[10px] font-semibold tracking-[.07em] text-[#536380] uppercase sm:inline-flex">
               Local API
             </span>
-            <button
-              type="button"
-              aria-label="Notifications, 3 unread"
-              className="focus-ring relative grid size-10 place-items-center rounded-full text-[#4c5f80] transition hover:bg-[#f0f5fc]"
-            >
-              <Bell size={20} aria-hidden="true" />
-              <span className="absolute top-0.5 right-0.5 grid size-[17px] place-items-center rounded-full bg-[#ff3b4d] text-[10px] font-bold text-white">
-                3
-              </span>
-            </button>
+            <NotificationBell />
             <div className="hidden h-9 border-l border-[#e8edf4] sm:block" />
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>

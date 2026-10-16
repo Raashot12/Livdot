@@ -357,6 +357,7 @@ export function PublicEventPaymentPage({
       contactPhone: String(formData.get("phone") ?? "").trim(),
       attendees,
       createdAt: new Date().toISOString(),
+      paymentStatus: "paid",
       simulated: true,
     };
     saveSimulatedOrder(order);

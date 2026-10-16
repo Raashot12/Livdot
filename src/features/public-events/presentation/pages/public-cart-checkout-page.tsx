@@ -352,6 +352,7 @@ export function PublicCartCheckoutPage() {
       contactPhone: String(formData.get("contact-phone") ?? "").trim(),
       attendees,
       createdAt: new Date().toISOString(),
+      paymentStatus: "paid",
       simulated: true,
     };
     saveSimulatedOrder(order);

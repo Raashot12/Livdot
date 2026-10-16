@@ -8,14 +8,185 @@ import {
   ExternalLink,
   Ticket,
 } from "lucide-react";
+import { useSyncExternalStore } from "react";
 import { useEvent } from "../../application/hooks/use-event";
+import type { EventEntity } from "../../domain/entities/event.entity";
 import { EmptyState } from "@/shared/components/feedback/empty-state";
 import { ErrorState } from "@/shared/components/feedback/error-state";
 import { LoadingState } from "@/shared/components/feedback/loading-state";
+import {
+  formatTicketMoney,
+  getOrderLinesForEvent,
+  getSimulatedOrdersSnapshot,
+  parseSimulatedOrders,
+  subscribeSimulatedOrders,
+} from "@/shared/lib/demo-ticketing-store";
 import { formatEventDateTime } from "../lib/event-view.utils";
 
 const panel =
   "rounded-[14px] border border-[#e5ebf4] bg-white shadow-[0_4px_18px_rgba(18,44,78,.035)]";
+
+function EventTicketAvailability({ event }: { readonly event: EventEntity }) {
+  const ordersSnapshot = useSyncExternalStore(
+    subscribeSimulatedOrders,
+    getSimulatedOrdersSnapshot,
+    () => null,
+  );
+  const eventLines = parseSimulatedOrders(ordersSnapshot).flatMap((order) =>
+    getOrderLinesForEvent(order, event.id),
+  );
+  const soldTicketCount = eventLines.reduce(
+    (sum, line) => sum + line.quantity,
+    0,
+  );
+  const purchasedSeatKeys = new Set(
+    eventLines.flatMap((line) => line.seatKeys ?? []),
+  );
+  const seatMap = event.seatMap?.blocks.some((block) => block.seats.length > 0)
+    ? event.seatMap
+    : null;
+  const ticketOptions = event.ticketOptions ?? [];
+  const soldByTicketId = new Map<string, number>();
+  for (const line of eventLines) {
+    soldByTicketId.set(
+      line.id,
+      (soldByTicketId.get(line.id) ?? 0) + line.quantity,
+    );
+  }
+
+  const availableInBlock = (block: NonNullable<typeof seatMap>["blocks"][number]) =>
+    block.seats.filter(
+      (seat) =>
+        seat.salable &&
+        !purchasedSeatKeys.has(`${block.id}:${seat.id}`),
+    ).length;
+  const soldInBlock = (block: NonNullable<typeof seatMap>["blocks"][number]) =>
+    block.seats.filter((seat) =>
+      purchasedSeatKeys.has(`${block.id}:${seat.id}`),
+    ).length;
+  const availableSeatCount = seatMap
+    ? seatMap.blocks.reduce((sum, block) => sum + availableInBlock(block), 0)
+    : 0;
+  const soldSeatCount = seatMap
+    ? seatMap.blocks.reduce((sum, block) => sum + soldInBlock(block), 0)
+    : 0;
+  const hasTicketSetup = Boolean(seatMap || ticketOptions.length > 0);
+  const hasAvailability = seatMap
+    ? availableSeatCount > 0
+    : ticketOptions.some(
+        (ticket) =>
+          ticket.quantityAvailable == null ||
+          ticket.quantityAvailable - (soldByTicketId.get(ticket.id) ?? 0) > 0,
+      );
+
+  return (
+    <aside className={`${panel} p-4 sm:p-5`}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[16px] font-bold tracking-[-.025em] text-[#101b43]">
+          Tickets
+        </h2>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${
+            !hasTicketSetup
+              ? "bg-[#f1f4f8] text-[#64728d]"
+              : hasAvailability
+                ? "bg-[#e5fbf3] text-[#07855e]"
+                : "bg-[#fff0f1] text-[#c92d3a]"
+          }`}
+        >
+          {!hasTicketSetup
+            ? "Not available"
+            : hasAvailability
+              ? "On sale"
+              : "Sold out"}
+        </span>
+      </div>
+
+      {seatMap ? (
+        <div className="mt-3 rounded-[12px] border border-[#dce7f5] bg-[#f8fbff] p-3.5">
+          <p className="text-[12px] font-semibold text-[#162545]">
+            Seating availability
+          </p>
+          <p className="mt-1 text-[11px] text-[#687693]">
+            {availableSeatCount} seats remaining · {soldSeatCount} sold
+          </p>
+          <ul className="mt-3 space-y-2">
+            {seatMap.blocks.map((block) => (
+              <li
+                key={String(block.id)}
+                className="flex items-center justify-between gap-3 rounded-lg border border-[#e5ebf4] bg-white px-3 py-2"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[11px] font-semibold text-[#263653]">
+                    {block.title}
+                  </span>
+                  {block.price !== undefined && (
+                    <span className="mt-0.5 block text-[10px] text-[#687693]">
+                      {formatTicketMoney(block.price, block.currency ?? "NGN")}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-[10px] font-medium text-[#536380]">
+                  {availableInBlock(block)} left
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : ticketOptions.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {ticketOptions.map((ticket) => {
+            const sold = soldByTicketId.get(ticket.id) ?? 0;
+            const remaining =
+              ticket.quantityAvailable == null
+                ? null
+                : Math.max(0, ticket.quantityAvailable - sold);
+            return (
+              <li
+                key={ticket.id}
+                className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e4ebf4] bg-[#fbfdff] px-3.5 py-3"
+              >
+                <span className="min-w-0">
+                  <strong className="block truncate text-[12px] text-[#162545]">
+                    {ticket.name}
+                  </strong>
+                  <span className="mt-0.5 block text-[10px] text-[#687693]">
+                    {remaining === null
+                      ? `${sold} sold`
+                      : `${remaining} remaining · ${sold} sold`}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[12px] font-bold text-[#162545]">
+                  {formatTicketMoney(ticket.price, ticket.currency ?? "NGN")}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <EmptyState
+          size="compact"
+          icon={<Ticket size={21} strokeWidth={1.8} />}
+          title="Tickets aren’t available yet"
+          description="Ticket options will appear here when they’re added to the event."
+        />
+      )}
+
+      {hasTicketSetup && (
+        <p className="mt-3 text-center text-[10px] text-[#687693]">
+          {soldTicketCount} ticket{soldTicketCount === 1 ? "" : "s"} sold from
+          completed checkouts in this browser.
+        </p>
+      )}
+      <Link
+        href={`/dashboard/events/${event.id}/tickets`}
+        className="focus-ring mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#dce5f2] text-[11px] font-semibold text-[#075bff] hover:bg-[#f7faff]"
+      >
+        Ticket management <ArrowRight size={14} aria-hidden="true" />
+      </Link>
+    </aside>
+  );
+}
 
 export function EventPublicPage({ eventId }: { readonly eventId: string }) {
   const {
@@ -139,28 +310,7 @@ export function EventPublicPage({ eventId }: { readonly eventId: string }) {
             />
           </section>
         </div>
-        <aside className={`${panel} p-4 sm:p-5`}>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[16px] font-bold tracking-[-.025em] text-[#101b43]">
-              Tickets
-            </h2>
-            <span className="rounded-full bg-[#f1f4f8] px-2.5 py-1 text-[9px] font-semibold text-[#64728d]">
-              Not available
-            </span>
-          </div>
-          <EmptyState
-            size="compact"
-            icon={<Ticket size={21} strokeWidth={1.8} />}
-            title="Tickets aren’t available yet"
-            description="Ticket options and checkout will show here when ticket sales are connected."
-          />
-          <Link
-            href={`/dashboard/events/${event.id}/tickets`}
-            className="focus-ring mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#dce5f2] text-[11px] font-semibold text-[#075bff] hover:bg-[#f7faff]"
-          >
-            Ticket management <ArrowRight size={14} aria-hidden="true" />
-          </Link>
-        </aside>
+        <EventTicketAvailability event={event} />
       </div>
     </main>
   );

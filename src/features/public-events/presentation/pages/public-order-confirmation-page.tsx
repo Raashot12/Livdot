@@ -596,7 +596,7 @@ export function PublicOrderConfirmationPage({
         <section className="rounded-[24px] border border-[#e5ebf4] bg-white p-5 shadow-[0_12px_40px_rgba(11,21,56,.055)] sm:p-10">
           <EmptyState
             title="This demo order isn’t available in this browser session"
-            description="Complete the checkout simulation in the same browser tab to create a demo confirmation and ticket preview."
+            description="Complete the checkout simulation in this browser to create a demo confirmation and ticket preview."
             icon={<Ticket size={26} strokeWidth={1.8} />}
             action={{ label: "Browse events", href: "/" }}
             className="border-[#e5ebf4] bg-[#fbfcff]"

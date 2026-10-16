@@ -370,7 +370,7 @@ export function PublicEventDetailPage({
       />
 
       <div className="mx-auto grid w-full max-w-[1536px] grid-cols-1 items-start gap-5 px-5 pt-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(340px,430px)] lg:gap-6 lg:px-12 lg:pt-6">
-        <aside className="min-w-0 scroll-mt-[124px] lg:col-start-2 lg:row-start-1 lg:-mt-[202px]">
+        <aside className="min-w-0 scroll-mt-[124px] lg:sticky lg:top-[124px] lg:col-start-2 lg:row-start-1">
           <TicketAvailabilityCard event={event} />
           <section className="mt-4 rounded-[16px] border border-[#e3ebf5] bg-white p-5 shadow-[0_7px_24px_rgba(11,21,56,.05)] sm:p-6">
             <h2 className="text-lg font-bold tracking-[-.025em] text-[#0b1538]">

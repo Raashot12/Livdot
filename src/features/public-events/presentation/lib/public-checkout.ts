@@ -4,11 +4,29 @@ import type {
   SeatMapId,
 } from "@/features/events/domain/entities/event-seat-map";
 import type { EventTicketOption } from "@/features/events/domain/entities/event-ticket-option";
+import type {
+  DemoAttendee,
+  DemoCheckoutLineItem,
+  DemoOrderEvent,
+  DemoTicketOrder,
+} from "@/shared/lib/demo-ticketing-store";
+export {
+  createSimulatedOrderId,
+  getSimulatedOrderSnapshot,
+  parseSimulatedOrder,
+  readSimulatedOrder,
+  saveSimulatedOrder,
+  subscribeSimulatedOrder,
+} from "@/shared/lib/demo-ticketing-store";
+export type {
+  DemoAttendee as SimulatedAttendee,
+  DemoCheckoutLineItem as CheckoutLineItem,
+  DemoOrderEvent as SimulatedOrderEvent,
+  DemoTicketOrder as SimulatedOrder,
+} from "@/shared/lib/demo-ticketing-store";
 
 const CHECKOUT_KEY = "liv-dot:checkout:v1";
-const ORDER_PREFIX = "liv-dot:simulated-order:v1:";
 const CHECKOUT_CHANGE_EVENT = "liv-dot:checkout-change";
-const ORDER_CHANGE_EVENT = "liv-dot:simulated-order-change";
 
 export type CheckoutSelection = {
   readonly eventId: string;
@@ -20,51 +38,10 @@ export type CheckoutCart = {
   readonly selections: readonly CheckoutSelection[];
 };
 
-export type CheckoutLineItem = {
-  readonly id: string;
-  readonly eventId?: string;
-  readonly eventTitle?: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly quantity: number;
-  readonly unitPrice: number;
-  readonly currency: string;
-  readonly seatLabels?: readonly string[];
-  readonly seatKeys?: readonly string[];
-};
-
-export type SimulatedAttendee = {
-  readonly name: string;
-  readonly email: string;
-  readonly ticketName: string;
-  readonly eventId?: string;
-  readonly eventTitle?: string;
-};
-
-export type SimulatedOrder = {
-  readonly id: string;
-  readonly eventId: string;
-  readonly eventTitle: string;
-  readonly scheduledAt: string | null;
-  readonly lines: readonly CheckoutLineItem[];
-  readonly events?: readonly SimulatedOrderEvent[];
-  readonly total: number;
-  readonly currency: string;
-  readonly paymentMethod: string;
-  readonly contactName: string;
-  readonly contactEmail: string;
-  readonly contactPhone: string;
-  readonly attendees: readonly SimulatedAttendee[];
-  readonly createdAt: string;
-  readonly simulated: true;
-};
-
-export type SimulatedOrderEvent = {
-  readonly eventId: string;
-  readonly eventTitle: string;
-  readonly scheduledAt: string | null;
-  readonly lines: readonly CheckoutLineItem[];
-};
+type CheckoutLineItem = DemoCheckoutLineItem;
+type SimulatedOrder = DemoTicketOrder;
+type SimulatedOrderEvent = DemoOrderEvent;
+type SimulatedAttendee = DemoAttendee;
 
 export function seatMapSelectionKey(blockId: SeatMapId, seatId: SeatMapId) {
   return `${blockId}:${seatId}`;
@@ -327,68 +304,6 @@ export function formatMoney(amount: number, currency: string) {
   } catch {
     return `${currency} ${amount.toLocaleString("en-NG")}`;
   }
-}
-
-export function createSimulatedOrderId() {
-  const token =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replaceAll("-", "").slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `LVD-DEMO-${token.toUpperCase()}`;
-}
-
-export function saveSimulatedOrder(order: SimulatedOrder) {
-  try {
-    window.sessionStorage.setItem(
-      `${ORDER_PREFIX}${order.id}`,
-      JSON.stringify(order),
-    );
-    window.dispatchEvent(new Event(ORDER_CHANGE_EVENT));
-  } catch {
-    // The confirmation page will show its recoverable empty state.
-  }
-}
-
-export function subscribeSimulatedOrder(onStoreChange: () => void) {
-  window.addEventListener(ORDER_CHANGE_EVENT, onStoreChange);
-  return () => window.removeEventListener(ORDER_CHANGE_EVENT, onStoreChange);
-}
-
-export function getSimulatedOrderSnapshot(orderId: string) {
-  try {
-    return window.sessionStorage.getItem(`${ORDER_PREFIX}${orderId}`);
-  } catch {
-    return null;
-  }
-}
-
-export function parseSimulatedOrder(
-  raw: string | null,
-  orderId: string,
-): SimulatedOrder | null {
-  if (!raw) return null;
-  try {
-    const value: unknown = JSON.parse(raw);
-    if (
-      !isRecord(value) ||
-      value.id !== orderId ||
-      value.simulated !== true ||
-      typeof value.eventTitle !== "string" ||
-      typeof value.total !== "number" ||
-      typeof value.currency !== "string" ||
-      !Array.isArray(value.lines) ||
-      !Array.isArray(value.attendees)
-    ) {
-      return null;
-    }
-    return value as unknown as SimulatedOrder;
-  } catch {
-    return null;
-  }
-}
-
-export function readSimulatedOrder(orderId: string): SimulatedOrder | null {
-  return parseSimulatedOrder(getSimulatedOrderSnapshot(orderId), orderId);
 }
 
 export function subscribeToNoStore() {
